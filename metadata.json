@@ -1,0 +1,5 @@
+{
+  "name": "INVERSIONES MULTIAGENTES",
+  "description": "Un sistema multi-agente que analiza activos financieros utilizando análisis fundamental, cuantitativo y de riesgo para proporcionar una recomendación de inversión final.",
+  "requestFramePermissions": []
+}

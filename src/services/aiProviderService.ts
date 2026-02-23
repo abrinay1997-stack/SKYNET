@@ -1,56 +1,35 @@
-import { GoogleGenAI } from "@google/genai";
-import Anthropic from "@anthropic-ai/sdk";
-import OpenAI from "openai";
-
 export type AIProvider = 'gemini' | 'anthropic' | 'openai';
 
-interface AIConfig {
+interface AnalysisRequest {
+  projectId: number;
   provider: AIProvider;
-  apiKey: string;
-  model: string;
+  prompt: string;
+  systemInstruction?: string;
 }
 
-export async function callAI(config: AIConfig, prompt: string, systemInstruction?: string): Promise<string> {
+export async function callAIBackend(request: AnalysisRequest): Promise<string> {
+  const token = localStorage.getItem('skynet_token');
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
   try {
-    switch (config.provider) {
-      case 'gemini':
-        const ai = new GoogleGenAI({ apiKey: config.apiKey });
-        const response = await ai.models.generateContent({
-          model: config.model || "gemini-2.0-flash",
-          contents: prompt,
-          config: {
-            systemInstruction: systemInstruction,
-            tools: [{ googleSearch: {} }] as any // Enabling search by default if possible
-          }
-        });
-        return response.text || "No response";
+    const res = await fetch(`${API_BASE}/analysis/run`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(request),
+    });
 
-      case 'anthropic':
-        const anthropic = new Anthropic({ apiKey: config.apiKey, dangerouslyAllowBrowser: true });
-        const msg = await anthropic.messages.create({
-          model: config.model || "claude-3-5-sonnet-20241022",
-          max_tokens: 4096,
-          system: systemInstruction,
-          messages: [{ role: "user", content: prompt }],
-        });
-        return msg.content[0].type === 'text' ? msg.content[0].text : "No text response";
-
-      case 'openai':
-        const openai = new OpenAI({ apiKey: config.apiKey, dangerouslyAllowBrowser: true });
-        const completion = await openai.chat.completions.create({
-          model: config.model || "gpt-4o",
-          messages: [
-            { role: "system", content: systemInstruction || "" },
-            { role: "user", content: prompt },
-          ],
-        });
-        return completion.choices[0].message.content || "No content";
-
-      default:
-        throw new Error(`Provider ${config.provider} not supported`);
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || 'Failed to call AI via backend');
     }
+
+    const data = await res.json();
+    return data.response;
   } catch (error: any) {
-    console.error(`Error calling ${config.provider}:`, error);
-    throw new Error(`Error de comunicación con ${config.provider}: ${error.message}`);
+    console.error('Error calling backend AI:', error);
+    throw error;
   }
 }

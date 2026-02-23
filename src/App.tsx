@@ -3,11 +3,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Search, Activity, ShieldAlert, Briefcase, Loader2, Play,
   Settings, FolderOpen, Plus, Trash2, Save, X, ChevronRight,
-  Database, AlertTriangle, CheckCircle2
+  Database, AlertTriangle, CheckCircle2, Lock, Mail
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { api } from './services/api';
-import { callAI, AIProvider } from './services/aiProviderService';
+import { callAIBackend, AIProvider } from './services/aiProviderService';
 import { AGENT_CONFIGS } from './services/agentConfigs';
 
 type AgentStatus = 'idle' | 'running' | 'complete' | 'error';
@@ -36,6 +36,7 @@ interface Credential {
 }
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(api.isAuthenticated());
   const [view, setView] = useState<'analysis' | 'projects' | 'settings'>('analysis');
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
@@ -53,8 +54,10 @@ export default function App() {
   ]);
 
   useEffect(() => {
-    loadProjects();
-  }, []);
+    if (isAuthenticated) {
+      loadProjects();
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (currentProject) {
@@ -92,24 +95,24 @@ export default function App() {
   const runStep = async (agentId: string, prompt: string, systemInstruction: string, retries = 2) => {
     updateAgent(agentId, { status: 'running' });
 
-    let targetCred = credentials.find(c => c.provider === selectedProvider);
-    if (!targetCred && credentials.length > 0) {
-      targetCred = credentials[0];
-    }
+    if (!currentProject) throw new Error("No hay proyecto seleccionado");
 
-    const config = targetCred ? {
-      provider: targetCred.provider,
-      apiKey: targetCred.api_key,
-      model: targetCred.model_name
-    } : null;
+    let targetProvider = selectedProvider === 'auto'
+      ? (credentials.length > 0 ? credentials[0].provider : null)
+      : selectedProvider;
 
-    if (!config) {
+    if (!targetProvider) {
       throw new Error("No hay credenciales configuradas para este proyecto.");
     }
 
     for (let i = 0; i <= retries; i++) {
       try {
-        const result = await callAI(config, prompt, systemInstruction);
+        const result = await callAIBackend({
+          projectId: currentProject.id,
+          provider: targetProvider,
+          prompt,
+          systemInstruction
+        });
         updateAgent(agentId, { status: 'complete', result });
         return result;
       } catch (err: any) {
@@ -186,6 +189,12 @@ export default function App() {
     }
   };
 
+  if (!isAuthenticated) {
+    return (
+      <AuthView onLogin={() => setIsAuthenticated(true)} />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-emerald-500/30">
       {/* Header */}
@@ -222,6 +231,12 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => { api.logout(); setIsAuthenticated(false); }}
+              className="text-xs text-zinc-500 hover:text-zinc-100 px-3 py-1.5"
+            >
+              Cerrar Sesión
+            </button>
             {currentProject && view === 'analysis' && (
               <>
                 <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-md text-xs">
@@ -508,6 +523,107 @@ function ProjectsView({ projects, currentProject, onSelect, onRefresh }: {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function AuthView({ onLogin }: { onLogin: () => void }) {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      if (isLogin) {
+        await api.login({ email, password });
+        onLogin();
+      } else {
+        await api.register({ email, password });
+        setIsLogin(true);
+        setError('Registro exitoso. Por favor inicia sesión.');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl"
+      >
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-4">
+            <Briefcase className="w-6 h-6" />
+          </div>
+          <h2 className="text-2xl font-bold text-white">SKYNET</h2>
+          <p className="text-zinc-500 text-sm">Comité de Inversión Multi-Agente</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className={`p-3 rounded-lg text-xs ${error.includes('exitoso') ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-500 mb-1.5 uppercase tracking-wider">Email</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-2.5 w-4 h-4 text-zinc-500" />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500/50 outline-none"
+                placeholder="tu@email.com"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-500 mb-1.5 uppercase tracking-wider">Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-2.5 w-4 h-4 text-zinc-500" />
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500/50 outline-none"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2"
+          >
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : isLogin ? 'Entrar' : 'Registrarse'}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => setIsLogin(!isLogin)}
+            className="text-xs text-zinc-500 hover:text-emerald-400 transition-colors"
+          >
+            {isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Entra'}
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }

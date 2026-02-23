@@ -28,8 +28,11 @@ O ejecuta ambos simultáneamente:
 Esta aplicación es compatible con hosting estático. Si el backend no está disponible, la aplicación entrará automáticamente en **Modo Estático**, guardando todos los proyectos, credenciales e historial en el **LocalStorage** de tu navegador.
 
 ### GitHub Pages
-1. Ejecuta `npm run deploy`.
-2. Asegúrate de configurar las variables de entorno necesarias en la configuración de tu repositorio si usas CI/CD.
+El despliegue es **automático**. Cada vez que hagas un `push` a la rama `main`, GitHub Actions construirá la aplicación y la desplegará.
+
+**Configuración requerida en GitHub:**
+1. Ve a **Settings** > **Pages** en tu repositorio.
+2. En la sección **Build and deployment** > **Source**, selecciona **GitHub Actions**.
 
 ### Netlify
 1. Conecta tu repositorio a Netlify.

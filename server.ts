@@ -1,12 +1,11 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import { YahooFinance } from "yahoo-finance2";
+import yahooFinance from "yahoo-finance2";
 import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const yahooFinance = new YahooFinance();
 
 // Initialize SQLite Database
 const db = new Database(path.join(__dirname, "skynet.db"));

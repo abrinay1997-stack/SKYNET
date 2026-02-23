@@ -95,7 +95,7 @@ async function* streamLLM(prompt: string, systemInstruction: string, useSearch: 
     
     try {
       const stream = await ai.models.generateContentStream({
-        model: "gemini-2.0-flash",
+        model: "gemini-1.5-flash",
         contents: prompt,
         config: {
           systemInstruction,
@@ -187,7 +187,7 @@ export async function getMarketOpportunities() {
     const ai = new GoogleGenAI({ apiKey: apiKey as string });
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-1.5-flash",
         contents: prompt,
         config: {
           systemInstruction,

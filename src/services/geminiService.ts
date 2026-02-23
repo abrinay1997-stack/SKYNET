@@ -89,21 +89,27 @@ async function* streamLLM(prompt: string, systemInstruction: string, useSearch: 
       // Ignore if not available
     }
     const apiKey = settings.geminiKey || envKey;
+    if (!apiKey) throw new Error("Falta la API Key de Gemini. Configúrala en los ajustes.");
+
     const ai = new GoogleGenAI({ apiKey: apiKey as string });
     
-    const config: any = { systemInstruction };
-    if (useSearch) {
-      config.tools = [{ googleSearch: {} }];
-    }
+    try {
+      const stream = await ai.models.generateContentStream({
+        model: "gemini-2.0-flash",
+        contents: prompt,
+        config: {
+          systemInstruction,
+          tools: useSearch ? [{ googleSearch: {} }] : undefined,
+        }
+      });
 
-    const stream = await ai.models.generateContentStream({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config
-    });
-    
-    for await (const chunk of stream) {
-      if (chunk.text) yield chunk.text;
+      for await (const chunk of stream) {
+        const text = chunk.text;
+        if (text) yield text;
+      }
+    } catch (error) {
+      console.error("Gemini Stream Error:", error);
+      throw error;
     }
   }
 }
@@ -176,31 +182,44 @@ export async function getMarketOpportunities() {
       // Ignore if not available
     }
     const apiKey = settings.geminiKey || envKey;
+    if (!apiKey) return [];
+
     const ai = new GoogleGenAI({ apiKey: apiKey as string });
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: prompt,
+        config: {
+          systemInstruction,
+          tools: [{ googleSearch: {} }],
+          responseMimeType: "application/json",
+          responseSchema: {
             type: Type.OBJECT,
             properties: {
-              asset: { type: Type.STRING, description: "Nombre y ticker, ej. 'Nvidia (NVDA)' o 'Solana (SOL)'" },
-              type: { type: Type.STRING, description: "Tipo de activo: 'Crypto', 'Acción', 'Macro'" },
-              catalyst: { type: Type.STRING, description: "Explicación de 2-3 líneas del catalizador o noticia que lo hace una oportunidad HOY." },
-              sentiment: { type: Type.STRING, description: "'Alcista' o 'Bajista'" }
+              opportunities: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    asset: { type: Type.STRING, description: "Nombre y ticker, ej. 'Nvidia (NVDA)' o 'Solana (SOL)'" },
+                    type: { type: Type.STRING, description: "Tipo de activo: 'Crypto', 'Acción', 'Macro'" },
+                    catalyst: { type: Type.STRING, description: "Explicación de 2-3 líneas del catalizador o noticia que lo hace una oportunidad HOY." },
+                    sentiment: { type: Type.STRING, description: "'Alcista' o 'Bajista'" }
+                  },
+                  required: ["asset", "type", "catalyst", "sentiment"]
+                }
+              }
             },
-            required: ["asset", "type", "catalyst", "sentiment"]
+            required: ["opportunities"]
           }
         }
-      }
-    });
+      });
 
-    return parseJSONResponse(response.text || "[]");
+      return parseJSONResponse(response.text || "[]");
+    } catch (error) {
+      console.error("Gemini Opportunities Error:", error);
+      return [];
+    }
   }
 }
 

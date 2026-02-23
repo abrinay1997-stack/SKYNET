@@ -59,13 +59,18 @@ export function useTradingAnalysis() {
       try {
         const tickerMatch = asset.match(/\(([A-Z]{1,5})\)/);
         const ticker = tickerMatch ? tickerMatch[1] : asset.split(' ')[0];
-        const res = await fetch(`/api/finance/${ticker}`);
-        if (res.ok) {
-          const data = await res.json();
-          financialContext = data.data;
+        // En GitHub Pages / Vercel Static no hay backend, así que esto fallará.
+        // Solo lo intentamos si no parece ser una URL de producción estática
+        const isStatic = window.location.hostname.includes('github.io') || window.location.hostname.includes('vercel.app');
+        if (!isStatic) {
+          const res = await fetch(`/api/finance/${ticker}`);
+          if (res.ok) {
+            const data = await res.json();
+            financialContext = data.data;
+          }
         }
       } catch (e) {
-        console.warn("Failed to fetch financial context", e);
+        // Fallback silencioso
       }
 
       const isCrypto = /btc|eth|sol|crypto|bitcoin|ethereum|solana|usdt|usd\b/i.test(asset);

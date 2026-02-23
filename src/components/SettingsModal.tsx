@@ -9,13 +9,13 @@ interface SettingsModalProps {
 export type Provider = 'gemini' | 'openai' | 'anthropic' | 'xai' | 'deepseek' | 'mistral' | 'openrouter';
 
 const PROVIDERS: { id: Provider; name: string; placeholder: string; desc: string }[] = [
-  { id: 'gemini', name: 'Google Gemini', placeholder: 'AIzaSy...', desc: 'Gemini 1.5 Flash (Default)' },
-  { id: 'openai', name: 'OpenAI', placeholder: 'sk-proj-...', desc: 'GPT-4o' },
-  { id: 'anthropic', name: 'Anthropic', placeholder: 'sk-ant-...', desc: 'Claude 3.5 Sonnet (CORS Blocked en Browser)' },
-  { id: 'xai', name: 'xAI (Grok)', placeholder: 'xai-...', desc: 'Grok 2 Latest' },
-  { id: 'deepseek', name: 'DeepSeek', placeholder: 'sk-...', desc: 'DeepSeek V3 (Chat)' },
-  { id: 'mistral', name: 'Mistral AI', placeholder: '...', desc: 'Mistral Large' },
-  { id: 'openrouter', name: 'OpenRouter', placeholder: 'sk-or-v1-...', desc: 'Llama 3.3 70B (Default)' },
+  { id: 'gemini', name: 'Google Gemini', placeholder: 'AIzaSy...', desc: 'Gemini 1.5 Flash' },
+  { id: 'openai', name: 'OpenAI', placeholder: 'sk-proj-...', desc: 'GPT-4o (CORS Blocked)' },
+  { id: 'anthropic', name: 'Anthropic', placeholder: 'sk-ant-...', desc: 'Claude 3.5 Sonnet (CORS Blocked)' },
+  { id: 'xai', name: 'xAI (Grok)', placeholder: 'xai-...', desc: 'Grok 2 Latest (CORS Blocked)' },
+  { id: 'deepseek', name: 'DeepSeek', placeholder: 'sk-...', desc: 'DeepSeek V3 (CORS Blocked)' },
+  { id: 'mistral', name: 'Mistral AI', placeholder: '...', desc: 'Mistral Large (CORS Blocked)' },
+  { id: 'openrouter', name: 'OpenRouter', placeholder: 'sk-or-v1-...', desc: 'Llama 3.3 70B (Recomendado)' },
 ];
 
 export function SettingsModal({ onClose }: SettingsModalProps) {
@@ -128,8 +128,10 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               <p className="text-xs text-zinc-500">
                 {provider === 'gemini' 
                   ? 'Si se deja en blanco, usará la llave por defecto del entorno (si existe).' 
-                  : provider === 'anthropic'
-                  ? '⚠️ Anthropic bloquea las peticiones desde el navegador (CORS). Usa OpenRouter para acceder a Claude.'
+                  : provider === 'openrouter'
+                  ? 'Recomendado para usar Claude, GPT-4 o Grok desde el navegador sin errores de CORS.'
+                  : activeProvider.desc.includes('CORS Blocked')
+                  ? '⚠️ Este proveedor bloquea peticiones directas desde el navegador (CORS). Usa OpenRouter para acceder a estos modelos.'
                   : `Requerida para usar los modelos de ${activeProvider.name}.`}
               </p>
             </div>

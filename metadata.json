@@ -1,0 +1,5 @@
+{
+  "name": "AI Investment Committee",
+  "description": "A multi-agent system that analyzes financial assets using fundamental, quantitative, and risk analysis to provide a final investment recommendation.",
+  "requestFramePermissions": []
+}

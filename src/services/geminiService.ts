@@ -57,7 +57,16 @@ async function* streamLLM(prompt: string, systemInstruction: string, useSearch: 
 
     if (!apiKey) throw new Error(`Falta la API Key para ${settings.provider}`);
 
-    const openai = new OpenAI({ apiKey, baseURL, dangerouslyAllowBrowser: true });
+    const config: any = { apiKey, dangerouslyAllowBrowser: true };
+    if (baseURL) config.baseURL = baseURL;
+    if (settings.provider === 'openrouter') {
+      config.defaultHeaders = {
+        "HTTP-Referer": window.location.href,
+        "X-Title": "AI Trading Platform",
+      };
+    }
+
+    const openai = new OpenAI(config);
     const stream = await openai.chat.completions.create({
       model: model as string,
       messages: [
@@ -73,8 +82,14 @@ async function* streamLLM(prompt: string, systemInstruction: string, useSearch: 
     }
   } else {
     // Default to Gemini
-    const apiKey = settings.geminiKey || process.env.GEMINI_API_KEY;
-    const ai = new GoogleGenAI({ apiKey });
+    let envKey = '';
+    try {
+      envKey = (import.meta as any).env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '');
+    } catch (e) {
+      // Ignore if not available
+    }
+    const apiKey = settings.geminiKey || envKey;
+    const ai = new GoogleGenAI({ apiKey: apiKey as string });
     
     const config: any = { systemInstruction };
     if (useSearch) {
@@ -133,7 +148,16 @@ export async function getMarketOpportunities() {
     
     if (!apiKey) return [];
 
-    const openai = new OpenAI({ apiKey, baseURL, dangerouslyAllowBrowser: true });
+    const config: any = { apiKey, dangerouslyAllowBrowser: true };
+    if (baseURL) config.baseURL = baseURL;
+    if (settings.provider === 'openrouter') {
+      config.defaultHeaders = {
+        "HTTP-Referer": window.location.href,
+        "X-Title": "AI Trading Platform",
+      };
+    }
+
+    const openai = new OpenAI(config);
     const response = await openai.chat.completions.create({
       model: model as string,
       messages: [
@@ -145,8 +169,14 @@ export async function getMarketOpportunities() {
     
     return parseJSONResponse(response.choices[0].message.content || '{"opportunities": []}');
   } else {
-    const apiKey = settings.geminiKey || process.env.GEMINI_API_KEY;
-    const ai = new GoogleGenAI({ apiKey });
+    let envKey = '';
+    try {
+      envKey = (import.meta as any).env.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '');
+    } catch (e) {
+      // Ignore if not available
+    }
+    const apiKey = settings.geminiKey || envKey;
+    const ai = new GoogleGenAI({ apiKey: apiKey as string });
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: prompt,

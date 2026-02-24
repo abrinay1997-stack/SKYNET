@@ -43,7 +43,12 @@ export function AgentModal({ agent, onClose }: AgentModalProps) {
         </div>
         
         <div className="p-6 overflow-y-auto flex-1 prose prose-invert prose-sm prose-emerald max-w-none">
-          {agent.result ? (
+          {agent.status === 'error' ? (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-red-400">
+              <h3 className="text-red-400 font-bold mb-2">Error en el Agente</h3>
+              <p className="text-sm">{agent.result}</p>
+            </div>
+          ) : agent.result ? (
             <div className="markdown-body">
               <Markdown>{agent.result}</Markdown>
               {agent.status === 'running' && (

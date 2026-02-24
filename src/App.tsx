@@ -23,17 +23,20 @@ export default function App() {
   const [showRadar, setShowRadar] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [radarError, setRadarError] = useState<string | null>(null);
   
   const { isAnalyzing, runAnalysis, getAgent } = useTradingAnalysis();
 
   const handleScanMarket = async () => {
     setIsScanning(true);
     setShowRadar(true);
+    setRadarError(null);
     try {
       const opps = await getMarketOpportunities();
       setOpportunities(opps);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to scan market", error);
+      setRadarError(error.message);
     } finally {
       setIsScanning(false);
     }
@@ -212,6 +215,19 @@ export default function App() {
                 </div>
               )}
               
+              {cioAgent.status === 'error' && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6 text-red-400">
+                  <div className="flex items-center gap-3 mb-4">
+                    <ShieldAlert className="w-6 h-6" />
+                    <h3 className="font-bold text-lg">Error en la Generación de Señal</h3>
+                  </div>
+                  <p className="text-sm leading-relaxed mb-4">{cioAgent.result}</p>
+                  <p className="text-xs text-red-400/60 italic">
+                    Nota: Algunos proveedores como Anthropic o OpenAI requieren créditos o el uso de OpenRouter para funcionar en el navegador.
+                  </p>
+                </div>
+              )}
+
               {(cioAgent.status === 'running' || cioAgent.status === 'complete') && cioAgent.result && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -279,6 +295,20 @@ export default function App() {
                       <Radar className="w-6 h-6 text-amber-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                     </div>
                     <p className="animate-pulse">Buscando catalizadores y momentum extremo...</p>
+                  </div>
+                ) : radarError ? (
+                  <div className="flex flex-col items-center justify-center h-64 text-red-400 gap-4 text-center">
+                    <ShieldAlert className="w-12 h-12 opacity-50" />
+                    <div>
+                      <p className="font-bold">No se pudieron obtener oportunidades</p>
+                      <p className="text-sm opacity-80 max-w-md mt-2">{radarError}</p>
+                    </div>
+                    <button
+                      onClick={handleScanMarket}
+                      className="mt-4 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-xs font-bold transition-colors"
+                    >
+                      Reintentar Escaneo
+                    </button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

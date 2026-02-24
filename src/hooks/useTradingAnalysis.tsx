@@ -96,37 +96,37 @@ export function useTradingAnalysis() {
           try {
             for await (const chunk of runSentimentStream(asset)) { sentimentRep += chunk; appendAgentResult('sentiment', chunk); }
             updateAgent('sentiment', { status: 'complete' });
-          } catch (e) { updateAgent('sentiment', { status: 'error', result: 'Error en sentimiento.' }); }
+          } catch (e: any) { updateAgent('sentiment', { status: 'error', result: e.message }); }
         })(),
         (async () => {
           try {
             for await (const chunk of runFundamentalsStream(asset, financialContext)) { fundRep += chunk; appendAgentResult('fundamentals', chunk); }
             updateAgent('fundamentals', { status: 'complete' });
-          } catch (e) { updateAgent('fundamentals', { status: 'error', result: 'Error financiero.' }); }
+          } catch (e: any) { updateAgent('fundamentals', { status: 'error', result: e.message }); }
         })(),
         (async () => {
           try {
             for await (const chunk of runTechnicalsStream(asset)) { techRep += chunk; appendAgentResult('technicals', chunk); }
             updateAgent('technicals', { status: 'complete' });
-          } catch (e) { updateAgent('technicals', { status: 'error', result: 'Error técnico.' }); }
+          } catch (e: any) { updateAgent('technicals', { status: 'error', result: e.message }); }
         })(),
         (async () => {
           try {
             for await (const chunk of runLiquidityStream(asset)) { liqRep += chunk; appendAgentResult('liquidity', chunk); }
             updateAgent('liquidity', { status: 'complete' });
-          } catch (e) { updateAgent('liquidity', { status: 'error', result: 'Error de liquidez.' }); }
+          } catch (e: any) { updateAgent('liquidity', { status: 'error', result: e.message }); }
         })(),
         (async () => {
           try {
             for await (const chunk of runMonetaryStream(asset)) { monRep += chunk; appendAgentResult('monetary', chunk); }
             updateAgent('monetary', { status: 'complete' });
-          } catch (e) { updateAgent('monetary', { status: 'error', result: 'Error monetario.' }); }
+          } catch (e: any) { updateAgent('monetary', { status: 'error', result: e.message }); }
         })(),
         (async () => {
           try {
             for await (const chunk of runGeopoliticsStream(asset)) { geoRep += chunk; appendAgentResult('geopolitics', chunk); }
             updateAgent('geopolitics', { status: 'complete' });
-          } catch (e) { updateAgent('geopolitics', { status: 'error', result: 'Error geopolítico.' }); }
+          } catch (e: any) { updateAgent('geopolitics', { status: 'error', result: e.message }); }
         })()
       ]);
 
@@ -143,19 +143,19 @@ export function useTradingAnalysis() {
           try {
             for await (const chunk of runLeadResearcherStream(asset, sentimentRep, fundRep)) { leadResRep += chunk; appendAgentResult('lead_researcher', chunk); }
             updateAgent('lead_researcher', { status: 'complete' });
-          } catch (e) { updateAgent('lead_researcher', { status: 'error', result: 'Error en Lead Fundamental.' }); }
+          } catch (e: any) { updateAgent('lead_researcher', { status: 'error', result: e.message }); }
         })(),
         (async () => {
           try {
             for await (const chunk of runLeadQuantStream(asset, techRep, liqRep)) { leadQuantRep += chunk; appendAgentResult('lead_quant', chunk); }
             updateAgent('lead_quant', { status: 'complete' });
-          } catch (e) { updateAgent('lead_quant', { status: 'error', result: 'Error en Lead Quant.' }); }
+          } catch (e: any) { updateAgent('lead_quant', { status: 'error', result: e.message }); }
         })(),
         (async () => {
           try {
             for await (const chunk of runLeadMacroStream(asset, monRep, geoRep)) { leadMacroRep += chunk; appendAgentResult('lead_macro', chunk); }
             updateAgent('lead_macro', { status: 'complete' });
-          } catch (e) { updateAgent('lead_macro', { status: 'error', result: 'Error en Lead Macro.' }); }
+          } catch (e: any) { updateAgent('lead_macro', { status: 'error', result: e.message }); }
         })()
       ]);
 
@@ -170,8 +170,8 @@ export function useTradingAnalysis() {
           appendAgentResult('risk', chunk);
         }
         updateAgent('risk', { status: 'complete' });
-      } catch (e) {
-        updateAgent('risk', { status: 'error', result: 'Error en el análisis de riesgo.' });
+      } catch (e: any) {
+        updateAgent('risk', { status: 'error', result: e.message });
       }
 
       // ==========================================
@@ -185,8 +185,8 @@ export function useTradingAnalysis() {
           appendAgentResult('debate', chunk);
         }
         updateAgent('debate', { status: 'complete' });
-      } catch (e) {
-        updateAgent('debate', { status: 'error', result: 'Error en el debate del comité.' });
+      } catch (e: any) {
+        updateAgent('debate', { status: 'error', result: e.message });
       }
 
       // ==========================================
@@ -200,8 +200,8 @@ export function useTradingAnalysis() {
           appendAgentResult('cio', chunk);
         }
         updateAgent('cio', { status: 'complete' });
-      } catch (e) {
-        updateAgent('cio', { status: 'error', result: 'Error al generar la señal final.' });
+      } catch (e: any) {
+        updateAgent('cio', { status: 'error', result: e.message });
       }
 
     } catch (error) {

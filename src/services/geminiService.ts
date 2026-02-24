@@ -43,9 +43,8 @@ async function* streamLLM(prompt: string, systemInstruction: string, useSearch: 
       }
     } catch (error: any) {
       console.error("Anthropic Error:", error);
-      if (error.status === 400) yield "Error 400: Parámetros inválidos en Anthropic. Revisa el modelo o la clave.";
-      else if (error.message?.includes('CORS')) yield "Error de CORS: Anthropic no permite llamadas directas desde el navegador. Usa OpenRouter.";
-      else yield `Error de Anthropic: ${error.message}`;
+      const msg = error.error?.message || error.message || "Error desconocido en Anthropic";
+      throw new Error(`Anthropic: ${msg}`);
     }
   } else if (['openai', 'xai', 'deepseek', 'mistral', 'openrouter'].includes(settings.provider)) {
     let baseURL, model, apiKey;
@@ -91,7 +90,9 @@ async function* streamLLM(prompt: string, systemInstruction: string, useSearch: 
       }
     } catch (error: any) {
       console.error(`${settings.provider} Error:`, error);
-      yield `Error de ${settings.provider}: ${error.message}. ${error.message?.includes('CORS') || error.status === 403 ? 'Posible bloqueo de CORS. Usa OpenRouter.' : ''}`;
+      const msg = error.error?.message || error.message || `Error en ${settings.provider}`;
+      const corsHint = (error.message?.includes('CORS') || error.status === 403 || error.status === 0) ? ". Posible bloqueo de CORS. Usa OpenRouter." : "";
+      throw new Error(`${settings.provider}: ${msg}${corsHint}`);
     }
   } else {
     // Default to Gemini
@@ -120,9 +121,27 @@ async function* streamLLM(prompt: string, systemInstruction: string, useSearch: 
         const text = chunk.text;
         if (text) yield text;
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Fallback: Si falla con búsqueda (CORS o restricción), reintentamos sin herramientas
+      if (useSearch) {
+        console.warn("Gemini with Search failed, retrying without tools...", error);
+        try {
+          const stream = await ai.models.generateContentStream({
+            model: "gemini-1.5-flash",
+            contents: prompt + "\n(Nota: La búsqueda en tiempo real falló, responde con tu conocimiento actual)",
+            config: { systemInstruction }
+          });
+          for await (const chunk of stream) {
+            const text = chunk.text;
+            if (text) yield text;
+          }
+          return;
+        } catch (retryError: any) {
+          throw new Error(`Gemini: ${retryError.message}`);
+        }
+      }
       console.error("Gemini Stream Error:", error);
-      throw error;
+      throw new Error(`Gemini: ${error.message || "Error desconocido"}`);
     }
   }
 }
@@ -177,16 +196,19 @@ export async function getMarketOpportunities() {
     }
 
     const openai = new OpenAI(config);
-    const response = await openai.chat.completions.create({
-      model: model as string,
-      messages: [
-        { role: 'system', content: systemInstruction + " Responde ÚNICAMENTE con un objeto JSON válido que contenga la clave 'opportunities' con un array de objetos. Cada objeto debe tener: asset, type, catalyst, sentiment." },
-        { role: 'user', content: prompt }
-      ],
-      // OpenRouter/Mistral might not support response_format strict json_object perfectly, so we rely on prompt + parse
-    });
-    
-    return parseJSONResponse(response.choices[0].message.content || '{"opportunities": []}');
+    try {
+      const response = await openai.chat.completions.create({
+        model: model as string,
+        messages: [
+          { role: 'system', content: systemInstruction + " Responde ÚNICAMENTE con un objeto JSON válido que contenga la clave 'opportunities' con un array de objetos. Cada objeto debe tener: asset, type, catalyst, sentiment." },
+          { role: 'user', content: prompt }
+        ],
+      });
+      return parseJSONResponse(response.choices[0].message.content || '{"opportunities": []}');
+    } catch (error: any) {
+      console.error(`${settings.provider} Opportunities Error:`, error);
+      throw new Error(`${settings.provider}: ${error.error?.message || error.message}`);
+    }
   } else {
     let envKey = '';
     try {
@@ -229,9 +251,22 @@ export async function getMarketOpportunities() {
       });
 
       return parseJSONResponse(response.text || "[]");
-    } catch (error) {
-      console.error("Gemini Opportunities Error:", error);
-      return [];
+    } catch (error: any) {
+      console.warn("Gemini Opportunities with Search failed, retrying without tools...", error);
+      try {
+        const response = await ai.models.generateContent({
+          model: "gemini-1.5-flash",
+          contents: prompt,
+          config: {
+            systemInstruction,
+            responseMimeType: "application/json"
+          }
+        });
+        return parseJSONResponse(response.text || "[]");
+      } catch (retryError: any) {
+        console.error("Gemini Opportunities Final Error:", retryError);
+        throw new Error(`Gemini: ${retryError.message || "Error al escanear mercado"}`);
+      }
     }
   }
 }

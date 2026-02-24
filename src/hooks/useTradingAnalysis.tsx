@@ -59,10 +59,12 @@ export function useTradingAnalysis() {
       try {
         const tickerMatch = asset.match(/\(([A-Z]{1,5})\)/);
         const ticker = tickerMatch ? tickerMatch[1] : asset.split(' ')[0];
-        // En GitHub Pages / Vercel Static no hay backend, así que esto fallará.
-        // Solo lo intentamos si no parece ser una URL de producción estática
-        const isStatic = window.location.hostname.includes('github.io') || window.location.hostname.includes('vercel.app');
-        if (!isStatic) {
+
+        // Solo intentamos llamar al backend si estamos en localhost
+        // Esto evita errores 404 ruidosos en GitHub Pages
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+        if (isLocal) {
           const res = await fetch(`/api/finance/${ticker}`);
           if (res.ok) {
             const data = await res.json();

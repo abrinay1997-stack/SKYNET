@@ -28,16 +28,24 @@ async function* streamLLM(prompt: string, systemInstruction: string, useSearch: 
 
   if (settings.provider === 'anthropic' && settings.anthropicKey) {
     const anthropic = new Anthropic({ apiKey: settings.anthropicKey, dangerouslyAllowBrowser: true });
-    const stream = await anthropic.messages.stream({
-      model: 'claude-3-5-sonnet-latest',
-      max_tokens: 4096,
-      system: systemInstruction,
-      messages: [{ role: 'user', content: prompt }]
-    });
-    for await (const event of stream) {
-      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-        yield event.delta.text;
+    try {
+      const stream = await anthropic.messages.create({
+        model: 'claude-3-5-sonnet-20240620',
+        max_tokens: 4096,
+        system: systemInstruction || undefined,
+        messages: [{ role: 'user', content: prompt }],
+        stream: true,
+      });
+      for await (const chunk of stream) {
+        if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+          yield chunk.delta.text;
+        }
       }
+    } catch (error: any) {
+      console.error("Anthropic Error:", error);
+      if (error.status === 400) yield "Error 400: Parámetros inválidos en Anthropic. Revisa el modelo o la clave.";
+      else if (error.message?.includes('CORS')) yield "Error de CORS: Anthropic no permite llamadas directas desde el navegador. Usa OpenRouter.";
+      else yield `Error de Anthropic: ${error.message}`;
     }
   } else if (['openai', 'xai', 'deepseek', 'mistral', 'openrouter'].includes(settings.provider)) {
     let baseURL, model, apiKey;
@@ -67,18 +75,23 @@ async function* streamLLM(prompt: string, systemInstruction: string, useSearch: 
     }
 
     const openai = new OpenAI(config);
-    const stream = await openai.chat.completions.create({
-      model: model as string,
-      messages: [
-        { role: 'system', content: systemInstruction },
-        { role: 'user', content: prompt }
-      ],
-      stream: true,
-    });
-    
-    for await (const chunk of stream) {
-      const text = chunk.choices[0]?.delta?.content || "";
-      if (text) yield text;
+    try {
+      const stream = await openai.chat.completions.create({
+        model: model as string,
+        messages: [
+          { role: 'system', content: systemInstruction },
+          { role: 'user', content: prompt }
+        ],
+        stream: true,
+      });
+
+      for await (const chunk of stream) {
+        const text = chunk.choices[0]?.delta?.content || "";
+        if (text) yield text;
+      }
+    } catch (error: any) {
+      console.error(`${settings.provider} Error:`, error);
+      yield `Error de ${settings.provider}: ${error.message}. ${error.message?.includes('CORS') || error.status === 403 ? 'Posible bloqueo de CORS. Usa OpenRouter.' : ''}`;
     }
   } else {
     // Default to Gemini
